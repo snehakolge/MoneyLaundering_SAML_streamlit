@@ -34,11 +34,20 @@ col1, col2 = st.columns(2)
 
 with col1:
 
-    amount = st.number_input("Transaction Amount", value=50000.0)
+    amount = st.number_input(
+        "Transaction Amount",
+        value=50000.0
+    )
 
-    oldbalanceOrg = st.number_input("Old Balance Origin", value=100000.0)
+    oldbalanceOrg = st.number_input(
+        "Old Balance Origin",
+        value=100000.0
+    )
 
-    newbalanceOrig = st.number_input("New Balance Origin", value=50000.0)
+    newbalanceOrig = st.number_input(
+        "New Balance Origin",
+        value=50000.0
+    )
 
     customer_risk_score = st.slider(
         "Customer Risk Score",
@@ -204,7 +213,7 @@ input_data = pd.DataFrame({
 })
 
 # =====================================================
-# ENSURE MODEL GETS 29 FEATURES
+# ENSURE 29 FEATURES
 # =====================================================
 
 required_columns = [
@@ -258,7 +267,7 @@ input_data = input_data[required_columns]
 if st.button("Analyze Transaction"):
 
     # =====================================================
-    # MODEL PREDICTION
+    # MODEL SCORE
     # =====================================================
 
     model_probability = model.predict_proba(input_data)[0][1] * 100
@@ -381,8 +390,14 @@ if st.button("Analyze Transaction"):
     if structuring_indicator == 1:
         st.write("✔ Structuring / smurfing behavior detected")
 
-    st.write("✔ Enhanced Due Diligence triggered")
-    st.write("✔ STR review required")
+    if prediction == 1:
+
+        st.write("✔ Enhanced Due Diligence triggered")
+        st.write("✔ STR review required")
+
+    else:
+
+        st.write("✔ Standard monitoring applied")
 
     # =====================================================
     # RECOMMENDED ACTIONS
