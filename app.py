@@ -186,12 +186,10 @@ payment_type_encoded = label_encoders[
 ].transform([payment_type])[0]
 
 # =====================================================
-# FULL 29 FEATURE MODEL INPUT
+# FULL FEATURE MODEL INPUT
 # =====================================================
 
 input_data = pd.DataFrame({
-
-    # ORIGINAL FEATURES
 
     'Amount': [amount],
 
@@ -214,8 +212,6 @@ input_data = pd.DataFrame({
     'Payment_type': [
         payment_type_encoded
     ],
-
-    # ENGINEERED FEATURES
 
     'cross_border_flag': [
         cross_border_flag
@@ -326,7 +322,7 @@ if st.button("Analyze Transaction"):
     )
 
     # =====================================================
-    # CUSTOMER RISK CLASSIFICATION
+    # CUSTOMER RISK
     # =====================================================
 
     if sender_country_risk >= 4 or risk_score > 80:
@@ -452,7 +448,7 @@ for STR filing consideration.
         )
 
     # =====================================================
-    # EXPLAINABILITY
+    # EXPLAINABLE AI
     # =====================================================
 
     st.subheader(
@@ -487,9 +483,17 @@ for STR filing consideration.
 
     if len(reasons) == 0:
 
-        st.write(
-            "No major AML anomalies identified."
-        )
+        if prediction == 1:
+
+            st.write(
+                "Behavioral anomaly detected by AI model."
+            )
+
+        else:
+
+            st.write(
+                "No major AML anomalies identified."
+            )
 
     else:
 
