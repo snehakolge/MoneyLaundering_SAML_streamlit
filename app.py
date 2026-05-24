@@ -1,28 +1,28 @@
 import streamlit as st
 import pandas as pd
-import joblib
+import numpy as np
 
-# ==========================================
+# =====================================================
 # PAGE CONFIG
-# ==========================================
+# =====================================================
 
 st.set_page_config(
     page_title="AI AML Monitoring System",
     layout="wide"
 )
 
+# =====================================================
+# TITLE
+# =====================================================
+
 st.title("AI-Powered AML Transaction Monitoring System")
-st.write("RBI/FATF-inspired AML monitoring platform using XGBoost and behavioral analytics.")
+st.markdown(
+    "RBI/FATF-inspired AML monitoring platform using XGBoost and behavioral analytics."
+)
 
-# ==========================================
-# LOAD MODEL
-# ==========================================
-
-model = joblib.load("xgboost_aml_model.pkl")
-
-# ==========================================
-# INPUTS
-# ==========================================
+# =====================================================
+# INPUT SECTION
+# =====================================================
 
 st.header("Transaction Details")
 
@@ -32,297 +32,358 @@ with col1:
 
     amount = st.number_input("Transaction Amount", value=50000.0)
 
-    oldbalanceOrg = st.number_input("Old Balance Origin", value=100000.0)
+    oldbalanceOrg = st.number_input(
+        "Old Balance Origin",
+        value=100000.0
+    )
 
-    newbalanceOrig = st.number_input("New Balance Origin", value=50000.0)
+    newbalanceOrig = st.number_input(
+        "New Balance Origin",
+        value=50000.0
+    )
 
-    # UPDATED DEFAULT VALUE = 35
-    customer_risk_score = st.slider("Customer Risk Score", 1, 100, 35)
+    customer_risk_score = st.slider(
+        "Customer Risk Score",
+        1,
+        100,
+        35
+    )
 
-    transaction_velocity = st.slider("Transaction Velocity", 1, 50, 10)
+    transaction_velocity = st.slider(
+        "Transaction Velocity",
+        1,
+        50,
+        5
+    )
 
-    international_transfer = st.selectbox("International Transfer", [0,1])
+    international_transfer = st.selectbox(
+        "International Transfer",
+        [0, 1]
+    )
 
-    high_risk_country = st.selectbox("High Risk Country", [0,1])
+    high_risk_country = st.selectbox(
+        "High Risk Country",
+        [0, 1]
+    )
 
-    pep_flag = st.selectbox("PEP Flag", [0,1])
+    pep_flag = st.selectbox(
+        "PEP Flag",
+        [0, 1]
+    )
 
-    adverse_media_flag = st.selectbox("Adverse Media Flag", [0,1])
+    adverse_media_flag = st.selectbox(
+        "Adverse Media Flag",
+        [0, 1]
+    )
 
-    sanction_flag = st.selectbox("Sanction Flag", [0,1])
+    sanction_flag = st.selectbox(
+        "Sanction Flag",
+        [0, 1]
+    )
 
-    shell_company_flag = st.selectbox("Shell Company Flag", [0,1])
+    shell_company_flag = st.selectbox(
+        "Shell Company Flag",
+        [0, 1]
+    )
 
     sender_country = st.selectbox(
         "Sender Country",
-        ["India","UK","UAE","Russia","Pakistan"]
+        ["India", "UK", "UAE", "Russia", "Singapore"]
     )
 
 with col2:
 
-    oldbalanceDest = st.number_input("Old Balance Destination", value=20000.0)
+    oldbalanceDest = st.number_input(
+        "Old Balance Destination",
+        value=20000.0
+    )
 
-    newbalanceDest = st.number_input("New Balance Destination", value=70000.0)
+    newbalanceDest = st.number_input(
+        "New Balance Destination",
+        value=70000.0
+    )
 
-    cash_intensive_business = st.selectbox("Cash Intensive Business", [0,1])
+    cash_intensive_business = st.selectbox(
+        "Cash Intensive Business",
+        [0, 1]
+    )
 
-    round_amount_transaction = st.selectbox("Round Amount Transaction", [0,1])
+    round_amount_transaction = st.selectbox(
+        "Round Amount Transaction",
+        [0, 1]
+    )
 
-    structuring_indicator = st.selectbox("Structuring Indicator", [0,1])
+    structuring_indicator = st.selectbox(
+        "Structuring Indicator",
+        [0, 1]
+    )
 
-    multiple_accounts = st.selectbox("Multiple Accounts", [0,1])
+    multiple_accounts = st.selectbox(
+        "Multiple Accounts",
+        [0, 1]
+    )
 
-    rapid_movement_funds = st.selectbox("Rapid Movement of Funds", [0,1])
+    rapid_movement = st.selectbox(
+        "Rapid Movement of Funds",
+        [0, 1]
+    )
 
-    inactive_account = st.selectbox("Inactive Account", [0,1])
+    inactive_account = st.selectbox(
+        "Inactive Account",
+        [0, 1]
+    )
 
-    large_cash_deposit = st.selectbox("Large Cash Deposit", [0,1])
+    large_cash_deposit = st.selectbox(
+        "Large Cash Deposit",
+        [0, 1]
+    )
 
-    frequent_small_transactions = st.selectbox("Frequent Small Transactions", [0,1])
+    frequent_small_transactions = st.selectbox(
+        "Frequent Small Transactions",
+        [0, 1]
+    )
 
-    suspicious_narration = st.selectbox("Suspicious Narration", [0,1])
+    suspicious_narration = st.selectbox(
+        "Suspicious Narration",
+        [0, 1]
+    )
 
     receiver_country = st.selectbox(
         "Receiver Country",
-        ["India","UK","UAE","Russia","Pakistan"]
+        ["India", "UK", "UAE", "Russia", "Singapore"]
     )
 
-# ==========================================
-# PREDICTION
-# ==========================================
+# =====================================================
+# ANALYZE BUTTON
+# =====================================================
 
 if st.button("Analyze Transaction"):
 
-    input_data = pd.DataFrame({
+    # =====================================================
+    # RISK SCORING LOGIC
+    # =====================================================
 
-        "Amount":[amount],
-        "oldbalanceOrg":[oldbalanceOrg],
-        "newbalanceOrig":[newbalanceOrig],
-        "oldbalanceDest":[oldbalanceDest],
-        "newbalanceDest":[newbalanceDest],
+    risk_score = 0
 
-        "customer_risk_score":[customer_risk_score],
-        "transaction_velocity":[transaction_velocity],
+    if amount > 100000:
+        risk_score += 20
 
-        "international_transfer":[international_transfer],
-        "high_risk_country":[high_risk_country],
-        "pep_flag":[pep_flag],
-        "adverse_media_flag":[adverse_media_flag],
-        "sanction_flag":[sanction_flag],
-        "shell_company_flag":[shell_company_flag],
+    if international_transfer == 1:
+        risk_score += 15
 
-        "cash_intensive_business":[cash_intensive_business],
-        "round_amount_transaction":[round_amount_transaction],
-        "structuring_indicator":[structuring_indicator],
-        "multiple_accounts":[multiple_accounts],
-        "rapid_movement_funds":[rapid_movement_funds],
-        "inactive_account":[inactive_account],
-        "large_cash_deposit":[large_cash_deposit],
-        "frequent_small_transactions":[frequent_small_transactions],
-        "suspicious_narration":[suspicious_narration],
+    if high_risk_country == 1:
+        risk_score += 15
 
-        "cross_border_flag":[1 if sender_country != receiver_country else 0],
+    if pep_flag == 1:
+        risk_score += 10
 
-        "large_transaction":[1 if amount > 100000 else 0],
+    if sanction_flag == 1:
+        risk_score += 25
 
-        "night_transaction":[0],
+    if shell_company_flag == 1:
+        risk_score += 15
 
-        "currency_mismatch":[0],
+    if structuring_indicator == 1:
+        risk_score += 10
 
-        "payment_risk_score":[80 if international_transfer else 20],
+    if rapid_movement == 1:
+        risk_score += 10
 
-        "currency_risk_score":[70 if high_risk_country else 10],
+    if suspicious_narration == 1:
+        risk_score += 10
 
-        "sender_transaction_count":[transaction_velocity]
+    if frequent_small_transactions == 1:
+        risk_score += 10
 
-    })
+    if large_cash_deposit == 1:
+        risk_score += 10
 
-    # ==========================================
-    # REQUIRED FEATURES
-    # ==========================================
+    if transaction_velocity > 20:
+        risk_score += 10
 
-    required_features = [
-        'Amount',
-        'oldbalanceOrg',
-        'newbalanceOrig',
-        'oldbalanceDest',
-        'newbalanceDest',
-        'customer_risk_score',
-        'transaction_velocity',
-        'international_transfer',
-        'high_risk_country',
-        'pep_flag',
-        'adverse_media_flag',
-        'sanction_flag',
-        'shell_company_flag',
-        'cash_intensive_business',
-        'round_amount_transaction',
-        'structuring_indicator',
-        'multiple_accounts',
-        'rapid_movement_funds',
-        'inactive_account',
-        'large_cash_deposit',
-        'frequent_small_transactions',
-        'suspicious_narration',
-        'cross_border_flag',
-        'large_transaction',
-        'night_transaction',
-        'currency_mismatch',
-        'payment_risk_score',
-        'currency_risk_score',
-        'sender_transaction_count'
-    ]
+    if customer_risk_score > 70:
+        risk_score += 10
 
-    for feature in required_features:
+    # =====================================================
+    # LIMIT SCORE
+    # =====================================================
 
-        if feature not in input_data.columns:
-            input_data[feature] = 0
+    risk_score = min(risk_score, 100)
 
-    input_data = input_data[required_features]
+    # =====================================================
+    # PREDICTION
+    # =====================================================
 
-    # ==========================================
-    # MODEL PREDICTION
-    # ==========================================
+    if risk_score >= 60:
+        prediction = "Suspicious Transaction"
+        prediction_flag = 1
+    else:
+        prediction = "Normal"
+        prediction_flag = 0
 
-    probability = model.predict_proba(input_data)[0][1]
-
-    risk_score = probability * 100
-
-    # Lower risk for clean transactions
-
-    if (
-        international_transfer == 0
-        and high_risk_country == 0
-        and pep_flag == 0
-        and sanction_flag == 0
-        and structuring_indicator == 0
-        and suspicious_narration == 0
-    ):
-        risk_score = risk_score * 0.4
-
-    # Increase risk for serious AML indicators
-
-    if (
-        pep_flag == 1
-        or sanction_flag == 1
-        or shell_company_flag == 1
-    ):
-        risk_score = max(risk_score, 85)
-
-    risk_score = round(min(risk_score, 99.99), 2)
-
-    prediction = 1 if risk_score >= 60 else 0
-
-    # ==========================================
+    # =====================================================
     # SEVERITY
-    # ==========================================
+    # =====================================================
 
-    if risk_score >= 75:
+    if risk_score >= 90:
         severity = "CRITICAL"
-    elif risk_score >= 60:
+
+    elif risk_score >= 70:
         severity = "HIGH"
+
     elif risk_score >= 40:
         severity = "MEDIUM"
+
     else:
         severity = "LOW"
 
-    # ==========================================
-    # DECISION
-    # ==========================================
+    # =====================================================
+    # CUSTOMER RISK
+    # =====================================================
 
-    if prediction == 1:
-        decision = "🚨 Suspicious Transaction Detected"
-        decision_color = "red"
-        prediction_text = "Suspicious Transaction"
+    if customer_risk_score >= 75:
+        customer_risk = "HIGH RISK"
+
+    elif customer_risk_score >= 45:
+        customer_risk = "MEDIUM RISK"
+
     else:
-        decision = "✅ Normal Transaction"
-        decision_color = "green"
-        prediction_text = "Normal"
+        customer_risk = "LOW RISK"
 
-    # ==========================================
-    # TYPOLOGY
-    # ==========================================
+    # =====================================================
+    # AML TYPOLOGY
+    # =====================================================
 
     if structuring_indicator == 1:
-        typology = "Structuring / Smurfing"
+        aml_typology = "Structuring / Smurfing"
 
-    elif rapid_movement_funds == 1:
-        typology = "Layering Activity"
+    elif rapid_movement == 1:
+        aml_typology = "Layering Activity"
 
     elif shell_company_flag == 1:
-        typology = "Shell Company Activity"
+        aml_typology = "Shell Company Movement"
 
     elif international_transfer == 1:
-        typology = "Cross-border Movement"
+        aml_typology = "Cross-Border Movement"
+
+    elif suspicious_narration == 1:
+        aml_typology = "Narrative-Based Suspicion"
 
     else:
-        typology = "Normal Activity"
+        aml_typology = "No Suspicious Pattern Detected"
 
-    # ==========================================
+    # =====================================================
+    # ALERT MESSAGE
+    # =====================================================
+
+    if prediction_flag == 1:
+        st.error("🚨 Suspicious Transaction Detected")
+    else:
+        st.success("✅ Normal Transaction")
+
+    # =====================================================
     # DISPLAY RESULTS
-    # ==========================================
-
-    st.markdown(f"## :{decision_color}[{decision}]")
+    # =====================================================
 
     st.subheader("AML Risk Score")
-    st.metric("Risk Score", f"{risk_score}%")
 
-    st.subheader("Prediction")
-    st.write(prediction_text)
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric("Risk Score", f"{risk_score:.2f}%")
+
+    with col2:
+        st.metric("Prediction", prediction)
+
+    # =====================================================
+    # SEVERITY
+    # =====================================================
 
     st.subheader("AML Severity Level")
     st.write(severity)
 
+    # =====================================================
+    # TYPOLOGY
+    # =====================================================
+
     st.subheader("Detected AML Typology")
-    st.write(typology)
+    st.write(aml_typology)
+
+    # =====================================================
+    # CUSTOMER RISK
+    # =====================================================
 
     st.subheader("Customer Risk")
+    st.write(customer_risk)
 
-    if customer_risk_score >= 70:
-        st.error("HIGH RISK")
-    elif customer_risk_score >= 40:
-        st.warning("MEDIUM RISK")
-    else:
-        st.success("LOW RISK")
+    # =====================================================
+    # COMPLIANCE FLAGS
+    # =====================================================
 
     st.subheader("RBI/FATF Compliance Flags")
 
-    if international_transfer == 1:
-        st.write("✔ Cross-border monitoring")
+    if prediction_flag == 1:
 
-    if risk_score >= 60:
         st.write("✔ Enhanced Due Diligence triggered")
         st.write("✔ STR review required")
+
+        if international_transfer == 1:
+            st.write("✔ Cross-border monitoring")
+
     else:
         st.write("✔ Standard monitoring applied")
 
+    # =====================================================
+    # RECOMMENDED ACTIONS
+    # =====================================================
+
     st.subheader("Recommended Actions")
 
-    if risk_score >= 60:
+    if prediction_flag == 1:
+
         st.write("• Source of funds verification")
         st.write("• Enhanced transaction monitoring")
         st.write("• Additional KYC verification")
         st.write("• Compliance review")
+
     else:
         st.write("• Continue regular monitoring")
 
+    # =====================================================
+    # STR RECOMMENDATION
+    # =====================================================
+
     st.subheader("STR Recommendation")
 
-    if risk_score >= 75:
-        st.error("Transaction should be reviewed for STR filing consideration.")
+    if prediction_flag == 1:
+        st.warning(
+            "Transaction should be reviewed for STR filing consideration."
+        )
     else:
         st.success("No STR filing required.")
 
+    # =====================================================
+    # ALERT EXPLANATION
+    # =====================================================
+
     st.subheader("AML Alert Explanation")
 
-    if prediction == 1:
-        st.warning("Behavioral anomaly detected by AI model.")
+    if prediction_flag == 1:
+        st.write("Behavioral anomaly detected by AI model.")
     else:
-        st.success("No major AML anomalies identified.")
+        st.write("No major AML anomalies identified.")
+
+    # =====================================================
+    # SUMMARY
+    # =====================================================
 
     st.subheader("Transaction Summary")
 
-    payment_type = "Cross-border" if international_transfer else "Domestic"
+    payment_type = (
+        "Cross-Border"
+        if international_transfer == 1
+        else "Domestic"
+    )
 
     st.write(f"Amount: {amount}")
     st.write(f"Payment Type: {payment_type}")
