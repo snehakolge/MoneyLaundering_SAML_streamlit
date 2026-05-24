@@ -98,7 +98,6 @@ if st.button("Analyze Transaction"):
 
     input_data = pd.DataFrame({
 
-        # ORIGINAL FEATURES
         "Amount":[amount],
         "oldbalanceOrg":[oldbalanceOrg],
         "newbalanceOrig":[newbalanceOrig],
@@ -125,7 +124,6 @@ if st.button("Analyze Transaction"):
         "frequent_small_transactions":[frequent_small_transactions],
         "suspicious_narration":[suspicious_narration],
 
-        # ADDITIONAL FEATURES
         "cross_border_flag":[1 if sender_country != receiver_country else 0],
 
         "large_transaction":[1 if amount > 100000 else 0],
@@ -143,7 +141,7 @@ if st.button("Analyze Transaction"):
     })
 
     # ==========================================
-    # ADD MISSING FEATURES
+    # REQUIRED FEATURES
     # ==========================================
 
     required_features = [
@@ -189,14 +187,41 @@ if st.button("Analyze Transaction"):
     # MODEL PREDICTION
     # ==========================================
 
-    prediction = model.predict(input_data)[0]
-
     probability = model.predict_proba(input_data)[0][1]
 
-    risk_score = round(probability * 100, 2)
+    # Rule-based calibration for realistic AML scoring
+
+    risk_score = probability * 100
+
+    # Lower risk for clean domestic transactions
+
+    if (
+        international_transfer == 0
+        and high_risk_country == 0
+        and pep_flag == 0
+        and sanction_flag == 0
+        and structuring_indicator == 0
+        and suspicious_narration == 0
+    ):
+        risk_score = risk_score * 0.4
+
+    # Increase risk for serious AML indicators
+
+    if (
+        pep_flag == 1
+        or sanction_flag == 1
+        or shell_company_flag == 1
+    ):
+        risk_score = max(risk_score, 85)
+
+    risk_score = round(min(risk_score, 99.99), 2)
+
+    # Final prediction
+
+    prediction = 1 if risk_score >= 60 else 0
 
     # ==========================================
-    # DECISION
+    # SEVERITY
     # ==========================================
 
     if risk_score >= 75:
@@ -207,6 +232,10 @@ if st.button("Analyze Transaction"):
         severity = "MEDIUM"
     else:
         severity = "LOW"
+
+    # ==========================================
+    # DECISION
+    # ==========================================
 
     if prediction == 1:
         decision = "🚨 Suspicious Transaction Detected"
