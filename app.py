@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import numpy as np
 
 # =====================================================
 # PAGE CONFIG
@@ -41,9 +40,19 @@ with col1:
 
     newbalanceOrig = st.number_input("New Balance Origin", value=50000.0)
 
-    customer_risk_score = st.slider("Customer Risk Score", 1, 100, 80)
+    customer_risk_score = st.slider(
+        "Customer Risk Score",
+        1,
+        100,
+        80
+    )
 
-    transaction_velocity = st.slider("Transaction Velocity", 1, 50, 10)
+    transaction_velocity = st.slider(
+        "Transaction Velocity",
+        1,
+        50,
+        10
+    )
 
     international_transfer = st.selectbox(
         "International Transfer",
@@ -82,9 +91,15 @@ with col1:
 
 with col2:
 
-    oldbalanceDest = st.number_input("Old Balance Destination", value=20000.0)
+    oldbalanceDest = st.number_input(
+        "Old Balance Destination",
+        value=20000.0
+    )
 
-    newbalanceDest = st.number_input("New Balance Destination", value=70000.0)
+    newbalanceDest = st.number_input(
+        "New Balance Destination",
+        value=70000.0
+    )
 
     cash_intensive_business = st.selectbox(
         "Cash Intensive Business",
@@ -189,7 +204,7 @@ input_data = pd.DataFrame({
 })
 
 # =====================================================
-# ENSURE 29 FEATURES
+# ENSURE MODEL GETS 29 FEATURES
 # =====================================================
 
 required_columns = [
@@ -242,9 +257,41 @@ input_data = input_data[required_columns]
 
 if st.button("Analyze Transaction"):
 
-    prediction = model.predict(input_data)[0]
+    # =====================================================
+    # MODEL PREDICTION
+    # =====================================================
 
-    probability = model.predict_proba(input_data)[0][1] * 100
+    model_probability = model.predict_proba(input_data)[0][1] * 100
+
+    # =====================================================
+    # BUSINESS RULE CALIBRATION
+    # =====================================================
+
+    risk_flags = (
+
+        international_transfer +
+        high_risk_country +
+        pep_flag +
+        adverse_media_flag +
+        sanction_flag +
+        shell_company_flag +
+        cash_intensive_business +
+        round_amount_transaction +
+        structuring_indicator +
+        multiple_accounts +
+        rapid_movement_funds +
+        inactive_account +
+        large_cash_deposit +
+        frequent_small_txns +
+        suspicious_narration
+
+    )
+
+    probability = (model_probability * 0.4) + (risk_flags * 6)
+
+    probability = max(1, min(probability, 99))
+
+    prediction = 1 if probability >= 65 else 0
 
     # =====================================================
     # ALERT DISPLAY
@@ -273,7 +320,10 @@ if st.button("Analyze Transaction"):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.metric("AML Risk Score", f"{probability:.2f}%")
+        st.metric(
+            "AML Risk Score",
+            f"{probability:.2f}%"
+        )
 
     with col2:
         st.metric(
@@ -282,7 +332,14 @@ if st.button("Analyze Transaction"):
         )
 
     with col3:
-        st.metric("AML Severity Level", severity)
+        st.metric(
+            "AML Severity Level",
+            severity
+        )
+
+    # =====================================================
+    # TYPOLOGY
+    # =====================================================
 
     st.subheader("Detected AML Typology")
     st.info(aml_typology)
@@ -293,8 +350,10 @@ if st.button("Analyze Transaction"):
 
     if customer_risk_score >= 75:
         customer_risk = "HIGH RISK"
+
     elif customer_risk_score >= 40:
         customer_risk = "MEDIUM RISK"
+
     else:
         customer_risk = "LOW RISK"
 
@@ -302,7 +361,7 @@ if st.button("Analyze Transaction"):
     st.warning(customer_risk)
 
     # =====================================================
-    # RBI/FATF FLAGS
+    # RBI / FATF FLAGS
     # =====================================================
 
     st.subheader("RBI/FATF Compliance Flags")
@@ -337,16 +396,19 @@ if st.button("Analyze Transaction"):
     st.write("• Compliance review")
 
     # =====================================================
-    # STR
+    # STR RECOMMENDATION
     # =====================================================
 
     st.subheader("STR Recommendation")
 
     if prediction == 1:
+
         st.error(
             "Transaction should be reviewed for STR filing consideration."
         )
+
     else:
+
         st.success("No STR filing required.")
 
     # =====================================================
@@ -356,17 +418,29 @@ if st.button("Analyze Transaction"):
     st.subheader("AML Alert Explanation")
 
     if prediction == 1:
-        st.warning("Behavioral anomaly detected by AI model.")
+
+        st.warning(
+            "Behavioral anomaly detected by AI model."
+        )
+
     else:
-        st.success("No major AML anomalies identified.")
+
+        st.success(
+            "No major AML anomalies identified."
+        )
 
     # =====================================================
-    # SUMMARY
+    # TRANSACTION SUMMARY
     # =====================================================
 
     st.subheader("Transaction Summary")
 
     st.write(f"Amount: {amount}")
-    st.write(f"Payment Type: Cross-border" if international_transfer == 1 else "Payment Type: Domestic")
+
+    if international_transfer == 1:
+        st.write("Payment Type: Cross-border")
+    else:
+        st.write("Payment Type: Domestic")
+
     st.write(f"Sender Country: {sender_country}")
     st.write(f"Receiver Country: {receiver_country}")
