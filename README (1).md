@@ -21,3 +21,4 @@ RBI/FATF-aligned compliance monitoring.
 - Streamlit
 - Plotly
 - SHAP
+https://moneylaunderingappapp-cvbpnn4vnh5shbp6ukmov7.streamlit.app/
