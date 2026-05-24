@@ -1,167 +1,81 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import uuid
-from datetime import datetime
+🏦 Enterprise AML Monitoring System v4
+RBI/FATF aligned + ML + Rules + Case Management
 
-# =========================
-# PAGE CONFIG
-# =========================
-st.set_page_config(page_title="AML Monitoring System v4", layout="wide")
+📥 Transaction Input
+Transaction Amount
 
-st.title("🏦 Enterprise AML Monitoring System v4")
-st.caption("RBI/FATF aligned + ML + Rules + Case Management")
+50000.00
 
-# =========================
-# SAFE SESSION INIT
-# =========================
-if "cases" not in st.session_state:
-    st.session_state["cases"] = pd.DataFrame({
-        "case_id": [],
-        "timestamp": [],
-        "risk_score": [],
-        "severity": [],
-        "status": [],
-        "alert": [],
-        "amount": [],
-        "sender": [],
-        "receiver": []
-    })
 
-# =========================
-# INPUT SECTION
-# =========================
-st.header("📥 Transaction Input")
+Sender Country
 
-col1, col2, col3 = st.columns(3)
+India
+Receiver Country
 
-with col1:
-    amount = st.number_input("Transaction Amount", 0.0, 1e7, 50000.0)
-    sender_country = st.selectbox("Sender Country", ["India", "UK", "USA", "UAE"])
-    receiver_country = st.selectbox("Receiver Country", ["India", "UK", "USA", "UAE"])
-    customer_risk = st.slider("Customer Risk Score", 1, 100, 35)
+India
+Customer Risk Score
 
-with col2:
-    velocity = st.slider("Transaction Velocity", 1, 50, 10)
-    pep = st.selectbox("PEP Flag", [0, 1])
-    sanction = st.selectbox("Sanction Flag", [0, 1])
-    structuring = st.selectbox("Structuring Indicator", [0, 1])
 
-with col3:
-    cross_border = st.selectbox("Cross Border", [0, 1])
-    round_amt = st.selectbox("Round Amount", [0, 1])
-    cash_intensive = st.selectbox("Cash Intensive Business", [0, 1])
+1
 
-# =========================
-# RULE ENGINE
-# =========================
-def rule_engine():
-    score = 0
-    alerts = []
+100
 
-    if amount > 100000:
-        score += 30
-        alerts.append("High-value transaction (CTR risk)")
+Transaction Velocity
 
-    if structuring == 1:
-        score += 25
-        alerts.append("Structuring / smurfing detected")
 
-    if cross_border == 1 or sender_country != receiver_country:
-        score += 15
-        alerts.append("Cross-border transaction risk")
+1
 
-    if pep == 1:
-        score += 20
-        alerts.append("PEP flagged customer")
+50
 
-    if sanction == 1:
-        score += 40
-        alerts.append("Sanction list match")
+PEP Flag
 
-    if velocity > 40:
-        score += 15
-        alerts.append("High transaction velocity")
+0
+Sanction Flag
 
-    if round_amt == 1:
-        score += 10
-        alerts.append("Round amount pattern")
+0
+Structuring Indicator
 
-    if cash_intensive == 1:
-        score += 15
-        alerts.append("Cash-intensive business risk")
+1
+Cross Border
 
-    return min(score, 100), alerts
+0
+Round Amount
 
-# =========================
-# ML FALLBACK SCORE
-# =========================
-def ml_score():
-    base = (
-        customer_risk * 0.35 +
-        velocity * 1.2 +
-        structuring * 25 +
-        cross_border * 10 +
-        pep * 20 +
-        sanction * 40
-    )
-    return max(0, min(100, base + np.random.uniform(-3, 3)))
+0
+Cash Intensive Business
 
-# =========================
-# ANALYSE BUTTON
-# =========================
-if st.button("🔍 Analyse Transaction"):
+0
 
-    rule_score, alerts = rule_engine()
-    model_score = ml_score()
+📊 Result
+✅
+Normal Transaction
 
-    final_score = (rule_score * 0.5) + (model_score * 0.5)
+AML Risk Score
 
-    # severity
-    if final_score >= 80:
-        severity = "CRITICAL"
-    elif final_score >= 60:
-        severity = "HIGH"
-    elif final_score >= 40:
-        severity = "MEDIUM"
-    else:
-        severity = "LOW"
+36.42%
 
-    is_suspicious = final_score >= 55
+Severity: LOW
 
-    st.subheader("📊 Result")
+🚨 Alerts (RBI/FATF Aligned)
+✔ Structuring / smurfing detected
 
-    if is_suspicious:
-        st.error("🚨 Suspicious Transaction Detected")
-    else:
-        st.success("✅ Normal Transaction")
-
-    st.metric("AML Risk Score", f"{final_score:.2f}%")
-    st.write("Severity:", severity)
-
-    st.subheader("🚨 Alerts (RBI/FATF Aligned)")
-
-    if alerts:
-        for a in alerts:
-            st.write("✔", a)
-    else:
-        st.write("✔ No AML anomalies detected")
-
-    # =========================
-    # CASE CREATION
-    # =========================
-    case_id = str(uuid.uuid4())[:8]
-
-    new_case = pd.DataFrame([{
-        "case_id": case_id,
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "risk_score": final_score,
-        "severity": severity,
-        "status": "OPEN",
-        "alert": "; ".join(alerts) if alerts else "Normal",
-        "amount": amount,
-        "sender": sender_country,
-        "receiver": receiver_country
-    }])
-
-    st.session_state["cases"]
+[
+0:{
+"Case ID":"ba25a9c4"
+"Timestamp":"2026-05-24 18:53:33"
+"Amount":50000
+"Sender":"India"
+"Receiver":"India"
+"Risk Score":55
+"Severity":"MEDIUM"
+"STR Required":false
+"Alerts":"High-value transaction (CTR threshold risk), Structuring pattern detected"
+"Status":"OPEN"
+}
+1:{
+"case_id":"ab4c7060"
+"score":70
+"severity":"HIGH"
+"status":"OPEN"
+}
+]
