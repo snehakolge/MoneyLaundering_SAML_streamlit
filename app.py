@@ -11,13 +11,13 @@ st.title("🏦 Enterprise AML Monitoring System")
 st.markdown("RBI/FATF aligned + Real-time monitoring + Case Management")
 
 # ===============================
-# CASE STORAGE (SESSION)
+# SAFE SESSION INIT
 # ===============================
-if "cases" not in st.session_state:
+if "cases" not in st.session_state or st.session_state.cases is None:
     st.session_state.cases = []
 
 # ===============================
-# INPUT FORM
+# INPUT SECTION
 # ===============================
 st.subheader("Transaction Input")
 
@@ -27,7 +27,7 @@ with col1:
     amount = st.number_input("Transaction Amount", value=50000.0)
     sender_country = st.text_input("Sender Country", "India")
     receiver_country = st.text_input("Receiver Country", "UK")
-    risk_score = st.slider("Customer Risk Score", 1, 100, 35)
+    customer_risk_score = st.slider("Customer Risk Score", 1, 100, 35)
     velocity = st.slider("Transaction Velocity", 1, 50, 10)
 
 with col2:
@@ -45,60 +45,50 @@ round_amt = st.selectbox("Round Amount Transaction", [0, 1])
 cash_intensive = st.selectbox("Cash Intensive Business", [0, 1])
 
 # ===============================
-# AML ENGINE (RULE BASED + SCORING)
+# AML RULE ENGINE
 # ===============================
 def aml_engine(data):
     score = 0
     alerts = []
 
-    # High value rule (CTR-style)
     if data["amount"] >= 50000:
         score += 25
         alerts.append("High-value transaction (CTR threshold risk)")
 
-    # International transfer risk
-    if data["international"] == 1 or data["sender_country"] != data["receiver_country"]:
+    if data["sender_country"] != data["receiver_country"] or data["international"] == 1:
         score += 20
         alerts.append("Cross-border transaction detected")
 
-    # Structuring
     if data["structuring"] == 1:
         score += 25
         alerts.append("Structuring pattern detected")
 
-    # PEP / Sanctions
     if data["pep"] == 1:
         score += 15
         alerts.append("PEP involvement detected")
 
     if data["sanction"] == 1:
         score += 40
-        alerts.append("Sanction list match risk")
+        alerts.append("Sanction list risk detected")
 
-    # Risk score contribution
-    if data["risk_score"] > 70:
+    if data["customer_risk_score"] > 70:
         score += 15
         alerts.append("High customer risk profile")
 
-    # Velocity anomaly
     if data["velocity"] > 30:
         score += 10
         alerts.append("Unusual transaction velocity")
 
-    # Cash intensive
     if data["cash_intensive"] == 1:
         score += 10
         alerts.append("Cash intensive behavior")
 
-    # Round amount (structuring proxy)
     if data["round_amt"] == 1:
         score += 5
         alerts.append("Round amount pattern detected")
 
-    # Normalize
     score = min(score, 100)
 
-    # Severity
     if score >= 80:
         severity = "CRITICAL"
     elif score >= 60:
@@ -112,7 +102,7 @@ def aml_engine(data):
 
 
 # ===============================
-# ANALYSE BUTTON (FIXED)
+# ANALYSE BUTTON
 # ===============================
 if st.button("🔍 Analyse Transaction"):
 
@@ -120,7 +110,7 @@ if st.button("🔍 Analyse Transaction"):
         "amount": amount,
         "sender_country": sender_country,
         "receiver_country": receiver_country,
-        "risk_score": risk_score,
+        "customer_risk_score": customer_risk_score,
         "velocity": velocity,
         "international": international,
         "pep": pep,
@@ -132,17 +122,14 @@ if st.button("🔍 Analyse Transaction"):
 
     score, severity, alerts = aml_engine(input_data)
 
-    # prediction label
-    if severity in ["CRITICAL", "HIGH", "MEDIUM"]:
+    # prediction logic
+    if score >= 60:
         prediction = "⚠️ Suspicious Transaction"
         customer_risk = "HIGH RISK" if score > 70 else "MEDIUM RISK"
     else:
         prediction = "✅ Normal Transaction"
         customer_risk = "LOW RISK"
 
-    # ===============================
-    # OUTPUT UI
-    # ===============================
     st.subheader("📊 AML Result")
 
     st.metric("AML Risk Score", f"{score}%")
@@ -150,15 +137,16 @@ if st.button("🔍 Analyse Transaction"):
     st.write("Prediction:", prediction)
     st.write("Customer Risk:", customer_risk)
 
-    # Alerts
-    st.subheader("🚨 Alerts (RBI/FATF aligned)")
+    # alerts
+    st.subheader("🚨 Alerts (RBI/FATF Aligned)")
+
     if alerts:
         for a in alerts:
             st.write("✔", a)
     else:
         st.write("✔ No suspicious patterns detected")
 
-    # Recommendation
+    # recommendation
     st.subheader("📌 Recommendation")
 
     if score >= 60:
@@ -168,7 +156,7 @@ if st.button("🔍 Analyse Transaction"):
         st.success("No STR required")
         st.write("Continue normal monitoring")
 
-    # Case creation
+    # case creation
     case_id = str(uuid.uuid4())[:8]
 
     st.session_state.cases.append({
@@ -181,25 +169,37 @@ if st.button("🔍 Analyse Transaction"):
     st.subheader("📂 Case Created")
     st.write("Case ID:", case_id)
 
+
 # ===============================
-# CASE MANAGEMENT DASHBOARD
+# CASE MANAGEMENT (SAFE VERSION)
 # ===============================
 st.divider()
 st.subheader("📂 AML Case Management Dashboard")
 
-if st.session_state.cases:
-    df = pd.DataFrame(st.session_state.cases)
-    st.dataframe(df)
+cases = st.session_state.get("cases", [])
 
-    selected_case = st.selectbox("Select Case ID", df["case_id"])
+if cases and len(cases) > 0:
 
-    new_status = st.selectbox("Update Status", ["OPEN", "UNDER REVIEW", "CLOSED"])
+    df = pd.DataFrame(cases)
 
-    if st.button("Update Case Status"):
-        for c in st.session_state.cases:
-            if c["case_id"] == selected_case:
-                c["status"] = new_status
-        st.success("Case updated successfully")
+    if "case_id" in df.columns:
+
+        st.dataframe(df)
+
+        selected_case = st.selectbox("Select Case ID", df["case_id"].tolist())
+
+        new_status = st.selectbox("Update Status", ["OPEN", "UNDER REVIEW", "CLOSED"])
+
+        if st.button("Update Case Status"):
+
+            for c in st.session_state.cases:
+                if c.get("case_id") == selected_case:
+                    c["status"] = new_status
+
+            st.success("Case updated successfully")
+
+    else:
+        st.warning("Case data structure issue detected")
 
 else:
-    st.info("No cases created yet")
+    st.info("No cases created yet. Click 'Analyse Transaction' to generate alerts.")
