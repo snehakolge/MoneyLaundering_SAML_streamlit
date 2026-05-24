@@ -23,6 +23,7 @@ model = joblib.load("xgboost_aml_model.pkl")
 # =====================================================
 
 st.title("AI-Powered AML Transaction Monitoring System")
+
 st.markdown(
     "RBI/FATF-inspired AML monitoring platform using XGBoost and behavioral analytics."
 )
@@ -222,10 +223,35 @@ input_data = pd.DataFrame({
 })
 
 # =====================================================
-# ADD MISSING FEATURES
+# REQUIRED FEATURES
 # =====================================================
 
-required_features = model.get_booster().feature_names
+required_features = [
+    "amount",
+    "oldbalanceOrg",
+    "newbalanceOrig",
+    "oldbalanceDest",
+    "newbalanceDest",
+    "customer_risk_score",
+    "transaction_velocity",
+    "international_transfer",
+    "high_risk_country",
+    "pep_flag",
+    "adverse_media_flag",
+    "sanction_flag",
+    "shell_company_flag",
+    "cash_intensive_business",
+    "round_amount_transaction",
+    "structuring_indicator",
+    "multiple_accounts",
+    "rapid_movement_funds",
+    "inactive_account",
+    "large_cash_deposit",
+    "frequent_small_transactions",
+    "suspicious_narration",
+    "sender_country",
+    "receiver_country"
+]
 
 for feature in required_features:
     if feature not in input_data.columns:
@@ -349,7 +375,7 @@ if st.button("Analyze Transaction"):
         st.success("LOW RISK")
 
     # =================================================
-    # RBI / FATF FLAGS
+    # RBI/FATF FLAGS
     # =================================================
 
     st.subheader("RBI/FATF Compliance Flags")
