@@ -13,23 +13,20 @@ st.title("🏦 Enterprise AML Monitoring System v4")
 st.caption("RBI/FATF aligned + ML + Rules + Case Management")
 
 # =========================
-# SAFE SESSION STATE INIT
+# SAFE SESSION INIT
 # =========================
-def init_cases():
-    if "cases" not in st.session_state:
-        st.session_state.cases = pd.DataFrame({
-            "case_id": [],
-            "timestamp": [],
-            "risk_score": [],
-            "severity": [],
-            "status": [],
-            "alert": [],
-            "amount": [],
-            "sender": [],
-            "receiver": []
-        })
-
-init_cases()
+if "cases" not in st.session_state:
+    st.session_state["cases"] = pd.DataFrame({
+        "case_id": [],
+        "timestamp": [],
+        "risk_score": [],
+        "severity": [],
+        "status": [],
+        "alert": [],
+        "amount": [],
+        "sender": [],
+        "receiver": []
+    })
 
 # =========================
 # INPUT SECTION
@@ -56,7 +53,7 @@ with col3:
     cash_intensive = st.selectbox("Cash Intensive Business", [0, 1])
 
 # =========================
-# RULE ENGINE (RBI/FATF STYLE)
+# RULE ENGINE
 # =========================
 def rule_engine():
     score = 0
@@ -64,23 +61,23 @@ def rule_engine():
 
     if amount > 100000:
         score += 30
-        alerts.append("High-value transaction (CTR threshold risk)")
+        alerts.append("High-value transaction (CTR risk)")
 
     if structuring == 1:
         score += 25
-        alerts.append("Structuring detected (possible smurfing)")
+        alerts.append("Structuring / smurfing detected")
 
     if cross_border == 1 or sender_country != receiver_country:
         score += 15
-        alerts.append("Cross-border / international risk")
+        alerts.append("Cross-border transaction risk")
 
     if pep == 1:
         score += 20
-        alerts.append("PEP customer risk")
+        alerts.append("PEP flagged customer")
 
     if sanction == 1:
         score += 40
-        alerts.append("Sanction list match risk")
+        alerts.append("Sanction list match")
 
     if velocity > 40:
         score += 15
@@ -97,7 +94,7 @@ def rule_engine():
     return min(score, 100), alerts
 
 # =========================
-# ML FALLBACK MODEL (SAFE)
+# ML FALLBACK SCORE
 # =========================
 def ml_score():
     base = (
@@ -108,7 +105,6 @@ def ml_score():
         pep * 20 +
         sanction * 40
     )
-
     return max(0, min(100, base + np.random.uniform(-3, 3)))
 
 # =========================
@@ -121,7 +117,7 @@ if st.button("🔍 Analyse Transaction"):
 
     final_score = (rule_score * 0.5) + (model_score * 0.5)
 
-    # Severity
+    # severity
     if final_score >= 80:
         severity = "CRITICAL"
     elif final_score >= 60:
@@ -131,11 +127,11 @@ if st.button("🔍 Analyse Transaction"):
     else:
         severity = "LOW"
 
-    suspicious = final_score >= 55
+    is_suspicious = final_score >= 55
 
     st.subheader("📊 Result")
 
-    if suspicious:
+    if is_suspicious:
         st.error("🚨 Suspicious Transaction Detected")
     else:
         st.success("✅ Normal Transaction")
@@ -168,42 +164,4 @@ if st.button("🔍 Analyse Transaction"):
         "receiver": receiver_country
     }])
 
-    st.session_state.cases = pd.concat(
-        [st.session_state.cases, new_case],
-        ignore_index=True
-    )
-
-    st.success(f"📂 Case Created: {case_id}")
-
-# =========================
-# CASE MANAGEMENT (SAFE)
-# =========================
-st.divider()
-st.header("📂 Case Management Dashboard")
-
-df = st.session_state.cases
-
-if df.empty or "case_id" not in df.columns:
-    st.info("No cases generated yet")
-else:
-
-    case_list = df["case_id"].dropna().tolist()
-
-    if len(case_list) == 0:
-        st.info("No cases available")
-    else:
-
-        selected_case = st.selectbox("Select Case ID", case_list)
-
-        status = st.selectbox("Update Status", ["OPEN", "UNDER REVIEW", "CLOSED"])
-
-        if st.button("💾 Update Case Status"):
-
-            st.session_state.cases.loc[
-                st.session_state.cases["case_id"] == selected_case,
-                "status"
-            ] = status
-
-            st.success("Case updated successfully")
-
-        st.dataframe(st.session_state.cases)
+    st.session_state["cases"]
