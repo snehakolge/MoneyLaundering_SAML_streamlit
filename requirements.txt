@@ -1,4 +1,3 @@
-
 streamlit
 pandas
 numpy
@@ -6,5 +5,5 @@ scikit-learn
 xgboost
 joblib
 plotly
-shap
 imbalanced-learn
+shap
