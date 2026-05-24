@@ -1,219 +1,205 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import sqlite3
 import uuid
-from datetime import datetime
-import time
 
-# =========================
+# ===============================
 # PAGE CONFIG
-# =========================
-st.set_page_config(page_title="Bank Grade AML System", layout="wide")
+# ===============================
+st.set_page_config(page_title="AML Monitoring System", layout="wide")
 
-st.title("🏦 Enterprise AML Monitoring & Case Management System")
-st.caption("RBI/FATF aligned + Real-time monitoring + STR workflow")
+st.title("🏦 Enterprise AML Monitoring System")
+st.markdown("RBI/FATF aligned + Real-time monitoring + Case Management")
 
-# =========================
-# DATABASE SETUP (SQLite)
-# =========================
-conn = sqlite3.connect("aml_cases.db", check_same_thread=False)
-cursor = conn.cursor()
+# ===============================
+# CASE STORAGE (SESSION)
+# ===============================
+if "cases" not in st.session_state:
+    st.session_state.cases = []
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS cases (
-    case_id TEXT,
-    timestamp TEXT,
-    amount REAL,
-    sender TEXT,
-    receiver TEXT,
-    risk_score REAL,
-    severity TEXT,
-    alerts TEXT,
-    status TEXT,
-    str_required TEXT
-)
-""")
-conn.commit()
-
-# =========================
-# AML RULE ENGINE
-# =========================
-def aml_rules(amount, international, pep, sanction, structuring, velocity, risk_score):
-    score = 0
-    alerts = []
-
-    if amount > 40000:
-        score += 25
-        alerts.append("CTR Threshold Breach (RBI Cash Transaction Rule)")
-
-    if international:
-        score += 20
-        alerts.append("Cross-border Layering Risk")
-
-    if structuring:
-        score += 30
-        alerts.append("Structuring / Smurfing Pattern")
-
-    if pep:
-        score += 25
-        alerts.append("PEP - Enhanced Due Diligence Required")
-
-    if sanction:
-        score += 50
-        alerts.append("Sanction List Match - BLOCK IMMEDIATE")
-
-    if velocity > 30:
-        score += 15
-        alerts.append("High Velocity Transaction")
-
-    if risk_score > 80:
-        score += 20
-        alerts.append("High Customer Risk Score")
-
-    return min(score, 100), alerts
-
-# =========================
-# INPUT UI
-# =========================
-st.header("Transaction Input")
+# ===============================
+# INPUT FORM
+# ===============================
+st.subheader("Transaction Input")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    amount = st.number_input("Transaction Amount", 50000.0)
-    sender = st.text_input("Sender Country", "India")
-    receiver = st.text_input("Receiver Country", "UK")
-    risk_score_input = st.slider("Customer Risk Score", 1, 100, 40)
+    amount = st.number_input("Transaction Amount", value=50000.0)
+    sender_country = st.text_input("Sender Country", "India")
+    receiver_country = st.text_input("Receiver Country", "UK")
+    risk_score = st.slider("Customer Risk Score", 1, 100, 35)
+    velocity = st.slider("Transaction Velocity", 1, 50, 10)
 
 with col2:
-    velocity = st.slider("Transaction Velocity", 1, 50, 10)
-    international = st.selectbox("International Transfer", [0, 1])
-    pep = st.selectbox("PEP Flag", [0, 1])
-    sanction = st.selectbox("Sanction Flag", [0, 1])
-    structuring = st.selectbox("Structuring Indicator", [0, 1])
+    old_origin = st.number_input("Old Balance Origin", value=100000.0)
+    new_origin = st.number_input("New Balance Origin", value=50000.0)
+    old_dest = st.number_input("Old Balance Destination", value=20000.0)
+    new_dest = st.number_input("New Balance Destination", value=70000.0)
 
-# =========================
-# ANALYSE BUTTON
-# =========================
-if st.button("🔍 Run AML Analysis"):
+# flags
+international = st.selectbox("International Transfer", [0, 1])
+pep = st.selectbox("PEP Flag", [0, 1])
+sanction = st.selectbox("Sanction Flag", [0, 1])
+structuring = st.selectbox("Structuring Indicator", [0, 1])
+round_amt = st.selectbox("Round Amount Transaction", [0, 1])
+cash_intensive = st.selectbox("Cash Intensive Business", [0, 1])
 
-    # Risk scoring
-    risk_score, alerts = aml_rules(
-        amount,
-        international,
-        pep,
-        sanction,
-        structuring,
-        velocity,
-        risk_score_input
-    )
+# ===============================
+# AML ENGINE (RULE BASED + SCORING)
+# ===============================
+def aml_engine(data):
+    score = 0
+    alerts = []
+
+    # High value rule (CTR-style)
+    if data["amount"] >= 50000:
+        score += 25
+        alerts.append("High-value transaction (CTR threshold risk)")
+
+    # International transfer risk
+    if data["international"] == 1 or data["sender_country"] != data["receiver_country"]:
+        score += 20
+        alerts.append("Cross-border transaction detected")
+
+    # Structuring
+    if data["structuring"] == 1:
+        score += 25
+        alerts.append("Structuring pattern detected")
+
+    # PEP / Sanctions
+    if data["pep"] == 1:
+        score += 15
+        alerts.append("PEP involvement detected")
+
+    if data["sanction"] == 1:
+        score += 40
+        alerts.append("Sanction list match risk")
+
+    # Risk score contribution
+    if data["risk_score"] > 70:
+        score += 15
+        alerts.append("High customer risk profile")
+
+    # Velocity anomaly
+    if data["velocity"] > 30:
+        score += 10
+        alerts.append("Unusual transaction velocity")
+
+    # Cash intensive
+    if data["cash_intensive"] == 1:
+        score += 10
+        alerts.append("Cash intensive behavior")
+
+    # Round amount (structuring proxy)
+    if data["round_amt"] == 1:
+        score += 5
+        alerts.append("Round amount pattern detected")
+
+    # Normalize
+    score = min(score, 100)
 
     # Severity
-    if risk_score >= 80:
+    if score >= 80:
         severity = "CRITICAL"
-    elif risk_score >= 60:
+    elif score >= 60:
         severity = "HIGH"
-    elif risk_score >= 40:
+    elif score >= 40:
         severity = "MEDIUM"
     else:
         severity = "LOW"
 
-    # STR decision
-    str_required = "YES" if risk_score >= 70 else "NO"
+    return score, severity, alerts
 
-    # Case ID
-    case_id = str(uuid.uuid4())[:8]
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # Save to DB
-    cursor.execute("""
-        INSERT INTO cases VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        case_id,
-        timestamp,
-        amount,
-        sender,
-        receiver,
-        risk_score,
-        severity,
-        ", ".join(alerts),
-        "OPEN",
-        str_required
-    ))
-    conn.commit()
+# ===============================
+# ANALYSE BUTTON (FIXED)
+# ===============================
+if st.button("🔍 Analyse Transaction"):
 
-    # =========================
-    # OUTPUT DASHBOARD
-    # =========================
-    st.subheader("🚨 AML Risk Result")
+    input_data = {
+        "amount": amount,
+        "sender_country": sender_country,
+        "receiver_country": receiver_country,
+        "risk_score": risk_score,
+        "velocity": velocity,
+        "international": international,
+        "pep": pep,
+        "sanction": sanction,
+        "structuring": structuring,
+        "round_amt": round_amt,
+        "cash_intensive": cash_intensive
+    }
 
-    st.metric("Risk Score", f"{risk_score:.2f}%")
-    st.write("Severity:", severity)
+    score, severity, alerts = aml_engine(input_data)
 
-    if severity in ["HIGH", "CRITICAL"]:
-        st.error("⚠️ Suspicious Transaction Detected")
+    # prediction label
+    if severity in ["CRITICAL", "HIGH", "MEDIUM"]:
+        prediction = "⚠️ Suspicious Transaction"
+        customer_risk = "HIGH RISK" if score > 70 else "MEDIUM RISK"
     else:
-        st.success("✅ Normal Transaction")
+        prediction = "✅ Normal Transaction"
+        customer_risk = "LOW RISK"
 
-    st.subheader("🚨 Alerts (RBI/FATF Aligned)")
+    # ===============================
+    # OUTPUT UI
+    # ===============================
+    st.subheader("📊 AML Result")
+
+    st.metric("AML Risk Score", f"{score}%")
+    st.write("Severity:", severity)
+    st.write("Prediction:", prediction)
+    st.write("Customer Risk:", customer_risk)
+
+    # Alerts
+    st.subheader("🚨 Alerts (RBI/FATF aligned)")
     if alerts:
         for a in alerts:
             st.write("✔", a)
     else:
-        st.write("No alerts")
+        st.write("✔ No suspicious patterns detected")
 
-    st.subheader("📌 STR Decision")
-    if str_required == "YES":
-        st.error("STR Filing REQUIRED")
+    # Recommendation
+    st.subheader("📌 Recommendation")
+
+    if score >= 60:
+        st.error("STR Filing Recommended (Review Required)")
+        st.write("Enhanced Due Diligence required")
     else:
         st.success("No STR required")
+        st.write("Continue normal monitoring")
+
+    # Case creation
+    case_id = str(uuid.uuid4())[:8]
+
+    st.session_state.cases.append({
+        "case_id": case_id,
+        "score": score,
+        "severity": severity,
+        "status": "OPEN"
+    })
 
     st.subheader("📂 Case Created")
     st.write("Case ID:", case_id)
-    st.write("Status: OPEN")
 
-# =========================
+# ===============================
 # CASE MANAGEMENT DASHBOARD
-# =========================
+# ===============================
 st.divider()
-st.header("📊 Case Management Dashboard")
+st.subheader("📂 AML Case Management Dashboard")
 
-df = pd.read_sql("SELECT * FROM cases", conn)
+if st.session_state.cases:
+    df = pd.DataFrame(st.session_state.cases)
+    st.dataframe(df)
 
-if len(df) > 0:
-    st.dataframe(df, use_container_width=True)
+    selected_case = st.selectbox("Select Case ID", df["case_id"])
 
-    # Update status
-    st.subheader("Update Case Status")
+    new_status = st.selectbox("Update Status", ["OPEN", "UNDER REVIEW", "CLOSED"])
 
-    selected_case = st.selectbox("Select Case ID", df["case_id"].tolist())
-    new_status = st.selectbox("Change Status", ["OPEN", "UNDER REVIEW", "ESCALATED", "CLOSED"])
-
-    if st.button("Update Case"):
-        cursor.execute("""
-            UPDATE cases SET status=? WHERE case_id=?
-        """, (new_status, selected_case))
-        conn.commit()
-        st.success("Case Updated Successfully")
-
-    # Download report
-    st.download_button(
-        "⬇ Download AML Cases Report",
-        df.to_csv(index=False),
-        file_name="aml_cases.csv"
-    )
+    if st.button("Update Case Status"):
+        for c in st.session_state.cases:
+            if c["case_id"] == selected_case:
+                c["status"] = new_status
+        st.success("Case updated successfully")
 
 else:
-    st.info("No cases available yet")
-
-# =========================
-# SIMPLE REAL-TIME SIMULATION
-# =========================
-st.divider()
-st.header("⏱ Real-Time Monitoring Simulation")
-
-st.write("Auto-refreshing dashboard simulation (manual refresh)")
-
-if st.button("Refresh Cases View"):
-    st.rerun()
+    st.info("No cases created yet")
