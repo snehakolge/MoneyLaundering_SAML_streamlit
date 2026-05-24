@@ -1,512 +1,323 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import joblib
 
-# =====================================================
-# LOAD MODEL & ENCODERS
-# =====================================================
-
-model = joblib.load("xgboost_aml_model.pkl")
-
-label_encoders = joblib.load(
-    "label_encoders.pkl"
-)
-
-# =====================================================
+# ==========================================
 # PAGE CONFIG
-# =====================================================
+# ==========================================
 
 st.set_page_config(
-    page_title="AI AML Monitoring System",
+    page_title="AI-Powered AML Monitoring System",
     layout="wide"
 )
 
-# =====================================================
-# TITLE
-# =====================================================
+# ==========================================
+# LOAD MODEL
+# ==========================================
 
-st.title(
-    "AI-Powered AML Transaction Monitoring System"
-)
+model = joblib.load("xgboost_aml_model.pkl")
+feature_columns = joblib.load("feature_columns.pkl")
+
+# ==========================================
+# TITLE
+# ==========================================
+
+st.title("AI-Powered AML Transaction Monitoring System")
 
 st.markdown("""
-RBI/FATF-inspired AML monitoring platform
-using XGBoost and behavioral analytics.
+RBI/FATF-inspired AML monitoring platform using XGBoost and behavioral analytics.
 """)
 
-st.markdown("---")
+# ==========================================
+# USER INPUTS
+# ==========================================
 
-# =====================================================
-# SIDEBAR INPUTS
-# =====================================================
-
-st.sidebar.header(
-    "Transaction Details"
-)
+st.sidebar.header("Transaction Details")
 
 amount = st.sidebar.number_input(
     "Transaction Amount",
     min_value=0.0,
-    value=5000.0
+    value=50000.0
+)
+
+payment_type = st.sidebar.selectbox(
+    "Payment Type",
+    [
+        "Cross-border",
+        "Cash Deposit",
+        "Cheque",
+        "ACH",
+        "Wire Transfer"
+    ]
 )
 
 payment_currency = st.sidebar.selectbox(
     "Payment Currency",
     [
-        'UK pounds',
-        'Euro',
-        'Dirham'
-    ]
-)
-
-received_currency = st.sidebar.selectbox(
-    "Received Currency",
-    [
-        'UK pounds',
-        'Euro',
-        'Dirham'
+        "UK pounds",
+        "US Dollar",
+        "Euro",
+        "Dirham",
+        "Indian Rupee"
     ]
 )
 
 sender_country = st.sidebar.selectbox(
     "Sender Country",
     [
-        'UK',
-        'India',
-        'UAE'
+        "UK",
+        "India",
+        "USA",
+        "UAE"
     ]
 )
 
 receiver_country = st.sidebar.selectbox(
     "Receiver Country",
     [
-        'UK',
-        'India',
-        'UAE'
+        "UK",
+        "India",
+        "USA",
+        "UAE",
+        "Panama",
+        "Cayman Islands"
     ]
 )
 
-payment_type = st.sidebar.selectbox(
-    "Payment Type",
-    [
-        'Cash Deposit',
-        'Cross-border',
-        'Cheque',
-        'ACH'
-    ]
+# ==========================================
+# FEATURE ENGINEERING
+# ==========================================
+
+is_cross_border = 1 if sender_country != receiver_country else 0
+
+high_risk_country = 1 if receiver_country in [
+    "UAE",
+    "Panama",
+    "Cayman Islands"
+] else 0
+
+high_value_transaction = 1 if amount > 1000000 else 0
+
+cash_transaction = 1 if payment_type == "Cash Deposit" else 0
+
+structuring_risk = 1 if (
+    payment_type == "Cash Deposit"
+    and amount > 200000
+) else 0
+
+layering_risk = 1 if (
+    payment_type == "Cross-border"
+    and amount > 500000
+) else 0
+
+offshore_risk = 1 if receiver_country in [
+    "Panama",
+    "Cayman Islands"
+] else 0
+
+# ==========================================
+# CREATE INPUT DATAFRAME
+# ==========================================
+
+input_data = pd.DataFrame(
+    np.zeros((1, len(feature_columns))),
+    columns=feature_columns
 )
 
-# =====================================================
-# AML FLAGS
-# =====================================================
+# ==========================================
+# MAP FEATURES
+# ==========================================
 
-cross_border_flag = int(
-    sender_country != receiver_country
-)
-
-currency_mismatch = int(
-    payment_currency != received_currency
-)
-
-large_transaction = int(
-    amount > 10000
-)
-
-# =====================================================
-# RISK MAPPINGS
-# =====================================================
-
-payment_risk = {
-
-    'Cash Deposit': 5,
-
-    'Cross-border': 4,
-
-    'Cheque': 1,
-
-    'ACH': 2
+feature_map = {
+    "Amount": amount,
+    "is_cross_border": is_cross_border,
+    "high_risk_country": high_risk_country,
+    "high_value_transaction": high_value_transaction,
+    "cash_transaction": cash_transaction,
+    "structuring_risk": structuring_risk,
+    "layering_risk": layering_risk,
+    "offshore_risk": offshore_risk
 }
 
-country_risk = {
+for col, value in feature_map.items():
+    if col in input_data.columns:
+        input_data[col] = value
 
-    'UK': 1,
-
-    'India': 2,
-
-    'UAE': 4
-}
-
-currency_risk = {
-
-    'UK pounds': 2,
-
-    'Euro': 1,
-
-    'Dirham': 3
-}
-
-payment_risk_score = payment_risk[
-    payment_type
-]
-
-sender_country_risk = country_risk[
-    sender_country
-]
-
-receiver_country_risk = country_risk[
-    receiver_country
-]
-
-currency_risk_score = currency_risk[
-    payment_currency
-]
-
-# =====================================================
-# LABEL ENCODING
-# =====================================================
-
-payment_currency_encoded = label_encoders[
-    'Payment_currency'
-].transform([payment_currency])[0]
-
-received_currency_encoded = label_encoders[
-    'Received_currency'
-].transform([received_currency])[0]
-
-sender_country_encoded = label_encoders[
-    'Sender_bank_location'
-].transform([sender_country])[0]
-
-receiver_country_encoded = label_encoders[
-    'Receiver_bank_location'
-].transform([receiver_country])[0]
-
-payment_type_encoded = label_encoders[
-    'Payment_type'
-].transform([payment_type])[0]
-
-# =====================================================
-# FULL FEATURE MODEL INPUT
-# =====================================================
-
-input_data = pd.DataFrame({
-
-    'Amount': [amount],
-
-    'Payment_currency': [
-        payment_currency_encoded
-    ],
-
-    'Received_currency': [
-        received_currency_encoded
-    ],
-
-    'Sender_bank_location': [
-        sender_country_encoded
-    ],
-
-    'Receiver_bank_location': [
-        receiver_country_encoded
-    ],
-
-    'Payment_type': [
-        payment_type_encoded
-    ],
-
-    'cross_border_flag': [
-        cross_border_flag
-    ],
-
-    'currency_mismatch': [
-        currency_mismatch
-    ],
-
-    'large_transaction': [
-        large_transaction
-    ],
-
-    'payment_risk_score': [
-        payment_risk_score
-    ],
-
-    'sender_country_risk': [
-        sender_country_risk
-    ],
-
-    'receiver_country_risk': [
-        receiver_country_risk
-    ],
-
-    'currency_risk_score': [
-        currency_risk_score
-    ],
-
-    'daily_transaction_count': [1],
-
-    'fan_out_count': [1],
-
-    'structuring_flag': [0],
-
-    'dormant_flag': [0],
-
-    'days_since_last_txn': [5],
-
-    'hour': [12],
-
-    'day_of_week': [1],
-
-    'is_weekend': [0],
-
-    'high_risk_country_flag': [
-        int(sender_country_risk >= 4)
-    ],
-
-    'high_risk_payment_flag': [
-        int(payment_type == 'Cross-border')
-    ],
-
-    'same_currency_flag': [
-        int(payment_currency == received_currency)
-    ],
-
-    'high_amount_flag': [
-        int(amount > 50000)
-    ],
-
-    'velocity_score': [1],
-
-    'transaction_deviation_score': [1],
-
-    'customer_risk_score': [
-        sender_country_risk
-    ],
-
-    'transaction_frequency': [1]
-})
-
-# =====================================================
-# AML ANALYSIS
-# =====================================================
+# ==========================================
+# PREDICTION SECTION
+# ==========================================
 
 if st.button("Analyze Transaction"):
 
-    prediction = model.predict(
-        input_data
-    )[0]
+    prediction = model.predict(input_data)[0]
 
-    probability = model.predict_proba(
-        input_data
-    )[0][1]
+    probability = model.predict_proba(input_data)[0][1]
 
-    risk_score = round(
-        probability * 100,
-        2
-    )
+    risk_score = round(probability * 100, 2)
 
-    st.markdown("---")
-
-    # =====================================================
-    # METRICS
-    # =====================================================
-
-    col1, col2, col3 = st.columns(3)
-
-    col1.metric(
-        "AML Risk Score",
-        f"{risk_score}%"
-    )
-
-    col2.metric(
-        "Prediction",
-        prediction
-    )
-
-    # =====================================================
-    # CUSTOMER RISK
-    # =====================================================
-
-    if sender_country_risk >= 4 or risk_score > 80:
-
-        customer_risk = "HIGH RISK"
-
-    elif risk_score > 50:
-
-        customer_risk = "MEDIUM RISK"
-
-    else:
-
-        customer_risk = "LOW RISK"
-
-    col3.metric(
-        "Customer Risk",
-        customer_risk
-    )
-
-    # =====================================================
-    # AML DECISION
-    # =====================================================
-
-    st.subheader(
-        "AML Decision"
-    )
+    # ==========================================
+    # TRANSACTION LABEL
+    # ==========================================
 
     if prediction == 1:
-
-        st.error(
-            "Suspicious Transaction Detected"
-        )
-
+        prediction_label = "Suspicious Transaction"
+        st.error("🚨 Suspicious Transaction Detected")
     else:
+        prediction_label = "Normal Transaction"
+        st.success("✅ Normal Transaction")
 
-        st.success(
-            "Transaction Appears Normal"
-        )
-
-    # =====================================================
-    # RBI/FATF ALERTS
-    # =====================================================
-
-    st.subheader(
-        "RBI/FATF Monitoring Alerts"
-    )
-
-    if large_transaction:
-
-        st.warning(
-            "Large transaction detected"
-        )
-
-    if cross_border_flag:
-
-        st.warning(
-            "Cross-border transaction identified"
-        )
-
-    if currency_mismatch:
-
-        st.warning(
-            "Currency mismatch identified"
-        )
-
-    if sender_country_risk >= 4:
-
-        st.warning(
-            "High-risk geography identified"
-        )
-
-    # =====================================================
-    # EDD SECTION
-    # =====================================================
-
-    st.subheader(
-        "Enhanced Due Diligence"
-    )
-
-    if customer_risk == "HIGH RISK":
-
-        st.error("""
-Enhanced Due Diligence Required
-
-Recommended Actions:
-- Source of funds verification
-- Enhanced transaction monitoring
-- Additional KYC verification
-- Compliance review
-""")
-
-    elif customer_risk == "MEDIUM RISK":
-
-        st.warning(
-            "Periodic enhanced monitoring recommended"
-        )
-
-    else:
-
-        st.success(
-            "Standard due diligence sufficient"
-        )
-
-    # =====================================================
-    # STR RECOMMENDATION
-    # =====================================================
-
-    st.subheader(
-        "STR Recommendation"
-    )
+    # ==========================================
+    # RISK LEVEL
+    # ==========================================
 
     if risk_score > 85:
-
-        st.error("""
-Transaction should be reviewed
-for STR filing consideration.
-""")
-
+        risk_level = "CRITICAL"
+    elif risk_score > 60:
+        risk_level = "HIGH"
+    elif risk_score > 40:
+        risk_level = "MEDIUM"
     else:
+        risk_level = "LOW"
 
+    # ==========================================
+    # AML TYPOLOGY
+    # ==========================================
+
+    typology = "Normal Activity"
+
+    if payment_type == "Cross-border" and amount > 500000:
+        typology = "Layering / Cross-Border Laundering"
+
+    elif payment_type == "Cash Deposit" and amount > 200000:
+        typology = "Structuring / Smurfing"
+
+    elif receiver_country in ["UAE", "Panama", "Cayman Islands"]:
+        typology = "Offshore / Shell Activity"
+
+    # ==========================================
+    # DISPLAY RESULTS
+    # ==========================================
+
+    st.subheader("AML Risk Score")
+    st.metric("Risk Score", f"{risk_score}%")
+
+    st.subheader("Prediction")
+    st.write(prediction_label)
+
+    st.subheader("AML Severity Level")
+    st.warning(risk_level)
+
+    st.subheader("Detected AML Typology")
+    st.info(typology)
+
+    # ==========================================
+    # CUSTOMER RISK
+    # ==========================================
+
+    if risk_score > 75:
+        customer_risk = "HIGH RISK"
+    elif risk_score > 40:
+        customer_risk = "MEDIUM RISK"
+    else:
+        customer_risk = "LOW RISK"
+
+    st.subheader("Customer Risk")
+    st.write(customer_risk)
+
+    # ==========================================
+    # RBI/FATF COMPLIANCE FLAGS
+    # ==========================================
+
+    st.subheader("RBI/FATF Compliance Flags")
+
+    compliance_flags = []
+
+    if amount > 1000000:
+        compliance_flags.append(
+            "✔ High-value transaction review"
+        )
+
+    if payment_type == "Cross-border":
+        compliance_flags.append(
+            "✔ Cross-border monitoring"
+        )
+
+    if risk_score > 70:
+        compliance_flags.append(
+            "✔ Enhanced Due Diligence triggered"
+        )
+
+    if prediction == 1:
+        compliance_flags.append(
+            "✔ STR review required"
+        )
+
+    if receiver_country in [
+        "UAE",
+        "Panama",
+        "Cayman Islands"
+    ]:
+        compliance_flags.append(
+            "✔ FATF high-risk jurisdiction screening"
+        )
+
+    for flag in compliance_flags:
+        st.write(flag)
+
+    # ==========================================
+    # RECOMMENDED ACTIONS
+    # ==========================================
+
+    st.subheader("Recommended Actions")
+
+    recommendations = [
+        "Source of funds verification",
+        "Enhanced transaction monitoring",
+        "Additional KYC verification",
+        "Compliance review"
+    ]
+
+    for action in recommendations:
+        st.write(f"- {action}")
+
+    # ==========================================
+    # STR RECOMMENDATION
+    # ==========================================
+
+    st.subheader("STR Recommendation")
+
+    if prediction == 1:
+        st.error(
+            "Transaction should be reviewed for STR filing consideration."
+        )
+    else:
         st.success(
-            "No STR escalation recommended"
+            "No STR filing recommendation."
         )
 
-    # =====================================================
-    # EXPLAINABLE AI
-    # =====================================================
+    # ==========================================
+    # AI EXPLANATION
+    # ==========================================
 
-    st.subheader(
-        "AML Alert Explanation"
-    )
+    st.subheader("AML Alert Explanation")
 
-    reasons = []
-
-    if cross_border_flag:
-
-        reasons.append(
-            "Cross-border transaction"
+    if prediction == 1:
+        st.warning(
+            "Behavioral anomaly detected by AI model."
         )
-
-    if large_transaction:
-
-        reasons.append(
-            "Large transaction amount"
-        )
-
-    if currency_mismatch:
-
-        reasons.append(
-            "Currency mismatch"
-        )
-
-    if sender_country_risk >= 4:
-
-        reasons.append(
-            "High-risk geography"
-        )
-
-    if len(reasons) == 0:
-
-        if prediction == 1:
-
-            st.write(
-                "Behavioral anomaly detected by AI model."
-            )
-
-        else:
-
-            st.write(
-                "No major AML anomalies identified."
-            )
-
     else:
+        st.success(
+            "No major AML anomalies identified."
+        )
 
-        for reason in reasons:
-
-            st.write(f"• {reason}")
-
-    # =====================================================
+    # ==========================================
     # TRANSACTION SUMMARY
-    # =====================================================
+    # ==========================================
 
-    st.subheader(
-        "Transaction Summary"
-    )
+    st.subheader("Transaction Summary")
 
-    st.dataframe(input_data)
+    st.write(f"Amount: {amount}")
+    st.write(f"Payment Type: {payment_type}")
+    st.write(f"Sender Country: {sender_country}")
+    st.write(f"Receiver Country: {receiver_country}")
