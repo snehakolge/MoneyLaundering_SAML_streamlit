@@ -1,15 +1,14 @@
 import streamlit as st
+import random
+from datetime import datetime
 
 # =========================
 # PAGE CONFIG
 # =========================
-st.set_page_config(
-    page_title="AI AML Monitoring System",
-    layout="wide"
-)
+st.set_page_config(page_title="AML Monitoring System", layout="wide")
 
 st.title("AI-Powered AML Transaction Monitoring System")
-st.caption("RBI/FATF-inspired AML monitoring platform using behavioral analytics")
+st.caption("RBI/FATF aligned rule-based AML alerting engine")
 
 # =========================
 # INPUT SECTION
@@ -45,96 +44,84 @@ rapid_movement = st.selectbox("Rapid Movement of Funds", [0, 1])
 inactive_account = st.selectbox("Inactive Account", [0, 1])
 
 # =========================
-# ANALYSIS BUTTON
+# ANALYZE BUTTON
 # =========================
 st.markdown("---")
-st.subheader("AML Analysis")
 
 if st.button("🚨 Analyze Transaction", type="primary"):
 
     # =========================
-    # AML RISK SCORING ENGINE
+    # AML RISK SCORING ENGINE (RBI/FATF STYLE)
     # =========================
+
     risk_score = 0
+    reasons = []
 
-    risk_score += amount / 10000
+    # Transaction size risk
+    if amount > 100000:
+        risk_score += 25
+        reasons.append("Large transaction (>1L threshold)")
+
+    elif amount > 50000:
+        risk_score += 15
+        reasons.append("Medium-high transaction amount")
+
+    # Customer risk
     risk_score += customer_risk_score / 10
-    risk_score += velocity * 2
 
-    risk_score += intl_transfer * 15
-    risk_score += high_risk_country * 20
-    risk_score += pep_flag * 15
-    risk_score += sanction_flag * 25
-    risk_score += adverse_media * 10
-    risk_score += shell_company * 15
+    # Velocity
+    if velocity > 30:
+        risk_score += 20
+        reasons.append("High transaction velocity detected")
 
-    risk_score += structuring * 20
-    risk_score += cash_business * 10
-    risk_score += round_txn * 5
-    risk_score += multi_accounts * 10
-    risk_score += rapid_movement * 10
-    risk_score += inactive_account * 10
+    # Cross border logic (FATF red flag)
+    if sender_country != receiver_country:
+        risk_score += 20
+        reasons.append("Cross-border transaction detected")
 
-    risk_score = min(100, risk_score)
+    # High risk jurisdiction
+    if high_risk_country == 1:
+        risk_score += 25
+        reasons.append("High-risk jurisdiction involved")
 
-    # =========================
-    # CLASSIFICATION LOGIC
-    # =========================
-    if risk_score >= 80:
-        label = "Suspicious Transaction Detected"
-        severity = "CRITICAL"
-        risk_level = "HIGH RISK"
+    # PEP / Sanctions / Adverse media (RBI compliance critical flags)
+    if pep_flag == 1:
+        risk_score += 20
+        reasons.append("PEP involvement")
 
-    elif risk_score >= 60:
-        label = "Suspicious Transaction"
-        severity = "HIGH"
-        risk_level = "HIGH RISK"
+    if sanction_flag == 1:
+        risk_score += 40
+        reasons.append("Sanction list match risk")
 
-    elif risk_score >= 40:
-        label = "Suspicious Pattern"
-        severity = "MEDIUM"
-        risk_level = "MEDIUM RISK"
+    if adverse_media == 1:
+        risk_score += 15
+        reasons.append("Adverse media association")
 
-    else:
-        label = "Normal Transaction"
-        severity = "LOW"
-        risk_level = "LOW RISK"
+    # Shell company risk
+    if shell_company == 1:
+        risk_score += 20
+        reasons.append("Shell company indicator")
 
-    # =========================
-    # OUTPUT DASHBOARD
-    # =========================
-    st.markdown("## 📊 Result")
+    # Structuring (VERY IMPORTANT AML RULE)
+    if structuring == 1:
+        risk_score += 25
+        reasons.append("Structuring pattern detected")
 
-    if risk_score >= 60:
-        st.error(f"🚨 {label}")
-    else:
-        st.success(f"✅ {label}")
+    # Cash intensive business
+    if cash_business == 1:
+        risk_score += 10
+        reasons.append("Cash intensive business risk")
 
-    st.metric("AML Risk Score", f"{risk_score:.2f}%")
-    st.metric("Severity Level", severity)
-    st.metric("Customer Risk", risk_level)
+    # Round transaction (smurfing indicator)
+    if round_txn == 1:
+        risk_score += 5
+        reasons.append("Round amount transaction")
 
-    st.markdown("## Compliance Summary")
+    # Multiple accounts
+    if multi_accounts == 1:
+        risk_score += 15
+        reasons.append("Multiple account usage pattern")
 
-    if risk_score >= 60:
-        st.write("✔ Enhanced Due Diligence triggered")
-        st.write("✔ STR filing required")
-        st.write("✔ Compliance review needed")
-    else:
-        st.write("✔ Standard monitoring applied")
-        st.write("✔ No STR required")
-
-    st.markdown("## Recommended Actions")
-
-    if risk_score >= 60:
-        st.write("• Source of funds verification")
-        st.write("• Enhanced transaction monitoring")
-        st.write("• File STR if required")
-    else:
-        st.write("• Continue normal monitoring")
-
-    st.markdown("## Transaction Summary")
-
-    st.write(f"Amount: {amount}")
-    st.write(f"Sender Country: {sender_country}")
-    st.write(f"Receiver Country: {receiver_country}")
+    # Rapid movement of funds
+    if rapid_movement == 1:
+        risk
