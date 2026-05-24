@@ -36,7 +36,8 @@ with col1:
 
     newbalanceOrig = st.number_input("New Balance Origin", value=50000.0)
 
-    customer_risk_score = st.slider("Customer Risk Score", 1, 100, 80)
+    # UPDATED DEFAULT VALUE = 35
+    customer_risk_score = st.slider("Customer Risk Score", 1, 100, 35)
 
     transaction_velocity = st.slider("Transaction Velocity", 1, 50, 10)
 
@@ -91,10 +92,6 @@ with col2:
 # ==========================================
 
 if st.button("Analyze Transaction"):
-
-    # ==========================================
-    # CREATE INPUT DATAFRAME
-    # ==========================================
 
     input_data = pd.DataFrame({
 
@@ -189,11 +186,9 @@ if st.button("Analyze Transaction"):
 
     probability = model.predict_proba(input_data)[0][1]
 
-    # Rule-based calibration for realistic AML scoring
-
     risk_score = probability * 100
 
-    # Lower risk for clean domestic transactions
+    # Lower risk for clean transactions
 
     if (
         international_transfer == 0
@@ -215,8 +210,6 @@ if st.button("Analyze Transaction"):
         risk_score = max(risk_score, 85)
 
     risk_score = round(min(risk_score, 99.99), 2)
-
-    # Final prediction
 
     prediction = 1 if risk_score >= 60 else 0
 
