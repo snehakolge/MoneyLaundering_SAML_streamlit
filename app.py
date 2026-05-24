@@ -3,7 +3,7 @@ import pandas as pd
 import joblib
 
 # =====================================================
-# LOAD MODEL & LABEL ENCODERS
+# LOAD MODEL & ENCODERS
 # =====================================================
 
 model = joblib.load("xgboost_aml_model.pkl")
@@ -13,7 +13,7 @@ label_encoders = joblib.load(
 )
 
 # =====================================================
-# PAGE CONFIGURATION
+# PAGE CONFIG
 # =====================================================
 
 st.set_page_config(
@@ -97,7 +97,7 @@ payment_type = st.sidebar.selectbox(
 )
 
 # =====================================================
-# BASIC AML FLAGS
+# AML FLAGS
 # =====================================================
 
 cross_border_flag = int(
@@ -113,7 +113,7 @@ large_transaction = int(
 )
 
 # =====================================================
-# RISK MAPPING
+# RISK MAPPINGS
 # =====================================================
 
 payment_risk = {
@@ -136,12 +136,29 @@ country_risk = {
     'UAE': 4
 }
 
+currency_risk = {
+
+    'UK pounds': 2,
+
+    'Euro': 1,
+
+    'Dirham': 3
+}
+
 payment_risk_score = payment_risk[
     payment_type
 ]
 
 sender_country_risk = country_risk[
     sender_country
+]
+
+receiver_country_risk = country_risk[
+    receiver_country
+]
+
+currency_risk_score = currency_risk[
+    payment_currency
 ]
 
 # =====================================================
@@ -169,12 +186,12 @@ payment_type_encoded = label_encoders[
 ].transform([payment_type])[0]
 
 # =====================================================
-# MODEL INPUT
-# IMPORTANT:
-# ONLY TRAINED FEATURES
+# FULL 29 FEATURE MODEL INPUT
 # =====================================================
 
 input_data = pd.DataFrame({
+
+    # ORIGINAL FEATURES
 
     'Amount': [amount],
 
@@ -196,7 +213,79 @@ input_data = pd.DataFrame({
 
     'Payment_type': [
         payment_type_encoded
-    ]
+    ],
+
+    # ENGINEERED FEATURES
+
+    'cross_border_flag': [
+        cross_border_flag
+    ],
+
+    'currency_mismatch': [
+        currency_mismatch
+    ],
+
+    'large_transaction': [
+        large_transaction
+    ],
+
+    'payment_risk_score': [
+        payment_risk_score
+    ],
+
+    'sender_country_risk': [
+        sender_country_risk
+    ],
+
+    'receiver_country_risk': [
+        receiver_country_risk
+    ],
+
+    'currency_risk_score': [
+        currency_risk_score
+    ],
+
+    'daily_transaction_count': [1],
+
+    'fan_out_count': [1],
+
+    'structuring_flag': [0],
+
+    'dormant_flag': [0],
+
+    'days_since_last_txn': [5],
+
+    'hour': [12],
+
+    'day_of_week': [1],
+
+    'is_weekend': [0],
+
+    'high_risk_country_flag': [
+        int(sender_country_risk >= 4)
+    ],
+
+    'high_risk_payment_flag': [
+        int(payment_type == 'Cross-border')
+    ],
+
+    'same_currency_flag': [
+        int(payment_currency == received_currency)
+    ],
+
+    'high_amount_flag': [
+        int(amount > 50000)
+    ],
+
+    'velocity_score': [1],
+
+    'transaction_deviation_score': [1],
+
+    'customer_risk_score': [
+        sender_country_risk
+    ],
+
+    'transaction_frequency': [1]
 })
 
 # =====================================================
@@ -258,7 +347,7 @@ if st.button("Analyze Transaction"):
     )
 
     # =====================================================
-    # AML RESULT
+    # AML DECISION
     # =====================================================
 
     st.subheader(
@@ -363,7 +452,7 @@ for STR filing consideration.
         )
 
     # =====================================================
-    # EXPLAINABLE AI
+    # EXPLAINABILITY
     # =====================================================
 
     st.subheader(
